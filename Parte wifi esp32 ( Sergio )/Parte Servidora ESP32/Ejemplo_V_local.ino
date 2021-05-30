@@ -1,4 +1,4 @@
-// LA finalidad de esta práctica es establecer una conexión entre la placa Esp32 ( conectada a red wifi local ), y un dispositivo con internet ( Móvil, Pc, Tablet ) conectado a 
+// La finalidad de esta práctica es establecer una conexión entre la placa Esp32 ( conectada a red wifi local ), y un dispositivo con internet ( Móvil, Pc, Tablet ) conectado a 
 // internet en cualquier otra parte del mundo. Una vez realizada la conexión vamos a poder abrir o cerrar un relé, mediante una interfaz. Esto tiene muchísimas aplicaciones, 
 // desde domotizar una bombilla a domotizar una puerta de garaje, obviamente con varias adaptaciones. En mi caso, la idea es aplicarlo a una puerta con apertura eléctrica, para poder
 // salir de casa sin llaves, y poder abrir la puerta al volver o abrire la puerta a un amigo cuando estás de vacaciones. Obviamente, este proyecto nos puede parecer arriesgado, por carecer
@@ -6,49 +6,29 @@
 // abrir la puerta.
 
 #include <WiFi.h>
+#include <Wire.h>  // Include the required Wire library for I2C / integrer la librairie Wire pour utiliser l I2C
+// Esta librería hace posible la comunicacion por i2c con el Arduino Mega 2560
 //--------------------------------------------
 // Replace with your network credentials
-const char* ssid = "MOVISTAR_BD3E";          //Nombre de nuestra red Wifi.
-const char* password = "r2RUYTzQzXmuPsDodDVs";                   //Contraseña de nuestra red wifi.
+const char* ssid = "MOVISTAR_BD3E";               //Nombre de nuestra red Wifi.
+const char* password = "r2RUYTzQzXmuPsDodDVs";   //Contraseña de nuestra red wifi.
 //--------------------------------------------
 //--------------------------------------------
 
 WiFiServer server(80);
-unsigned long T_Control=0;      
+
 String header;
 unsigned long currentTime = millis(); 
 unsigned long previousTime = 0; 
 const long timeoutTime = 2000;
 
-
-// Auxiliar variables to store the current output state
-String output26State = "off";
-String output27State = "off";
-
-// Assign output variables to GPIO pins
-const int output26 = 2;
-const int output27 = 3;
+String State = "off";
 
 void setup() {
-  Serial.begin(115200UL);
-  Serial2.begin(115200UL);
-  pinMode(output26, OUTPUT);
-  digitalWrite(output26, LOW);
-  pinMode(output27, OUTPUT);
-  digitalWrite(output27, LOW);
-
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.begin(512000);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
   server.begin();
+  Wire.begin();
 }
 
 void loop(){
@@ -56,13 +36,11 @@ void loop(){
 
   if (client) {                             
     previousTime = currentTime;
-    Serial.println("New Client.");         
     String currentLine = "";                
     while (client.connected() && currentTime - previousTime <= timeoutTime) {  
       currentTime = millis();
       if (client.available()) {             
         char c = client.read();             
-        Serial.write(c);                    
         header += c;
         if (c == '\n') {                    
           
@@ -75,58 +53,35 @@ void loop(){
             
             // turns the GPIOs on and off
             if (header.indexOf("GET /26/on") >= 0) {
-              Serial.println("GPIO 26 on");
-              output26State = "on";
-              digitalWrite(output26, HIGH);
-              Serial.println("1");
-              Serial2.write(1);
+              Wire.beginTransmission(0x09);  // transmit to device #9 / transmission sur l arduino secondaire a l adresse 0x09 (=9 en decimale)
+              Wire.write(2); // sends x / envoi de la valeur de x
+              Wire.endTransmission();        // stop transmitting / arret de la transmission
+              State = "on";
             } else if (header.indexOf("GET /26/off") >= 0) {
-              Serial.println("GPIO 26 off");
-              output26State = "off";
-              digitalWrite(output26, LOW);
-              Serial.println("2");
-              Serial2.write(2);
+              Wire.beginTransmission(0x09);  // transmit to device #9 / transmission sur l arduino secondaire a l adresse 0x09 (=9 en decimale)
+              Wire.write(3); // sends x / envoi de la valeur de x
+              Wire.endTransmission();        // stop transmitting / arret de la transmission
+              State = "off";
 
-            } else if (header.indexOf("GET /27/on") >= 0) {
-              Serial.println("GPIO 27 on");
-              output27State = "on";
-              digitalWrite(output27, HIGH);
-              Serial.println("3");
-              Serial2.write(3);
-            } else if (header.indexOf("GET /27/off") >= 0) {
-              Serial.println("GPIO 27 off");
-              output27State = "off";
-              digitalWrite(output27, LOW);
-              Serial.println("4");
-              Serial2.write(4);
             } 
             
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
             client.println("<style>html { font-family: sans-serif; display: center; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 20px 60px;");
+            client.println(".button { background-color: #4CAF50; border: none; color: white; border-radius: 60px; padding: 20px 60px;");
             client.println("text-decoration: none; font-size: 35px; margin: 2px; cursor: pointer;}");
             client.println(".button2 {background-color: #555555;}</style></head>");
             
-            client.println("<body><h1>Principal Door</h1>");
+            client.println("<body><h1>Center Kill Parking</h1>");
             
                    
-            if (output26State=="off") {
-              client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
+            if (State=="off") {
+              client.println("<p><a href=\"/26/on\"><button class=\"button\">GENERAL ON</button></a></p>");
             } else {
-              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
+              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">GENERAL OFF</button></a></p>");
             } 
-               
-            // Display current state, and ON/OFF buttons for GPIO 27  
-            client.println("<p>GPIO 27 - State " + output27State + "</p>");
-            // If the output27State is off, it displays the ON button       
-            if (output27State=="off") {
-              client.println("<p><a href=\"/27/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/27/off\"><button class=\"button button2\">OFF</button></a></p>");
-            }
-               
+
             client.println("</body></html>");
             
             client.println();
