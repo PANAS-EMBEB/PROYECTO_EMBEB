@@ -22,15 +22,14 @@ byte validKey2[4] = { 0xC7, 0x37, 0x0C, 0xD9 };
 //Variables globales
 int pos = 0;
 int buzzer = 3;
-int ledPinAbrir = 4;
-unsigned long previousMillis = 0;
-const long interval = 1000;
-int ledState = LOW;
+int ledPinRojo = 4;
+int ledPinVerde = 6;
 int condicion = 0;
 
 //Funciones complementarias
 
 void lcdSetup(){
+  lcd.clear();
   lcd.begin(16, 2);
   lcd.setCursor(0, 0);
   lcd.print("Introduzca");
@@ -53,11 +52,15 @@ void giroServo(){
     myservo.write(pos);              // guardamos la nueva posicion del servo
     delay(15);                       // velocidad del giro
   }
+  digitalWrite(ledPinRojo,LOW);
+  digitalWrite(ledPinVerde,HIGH);
   delay(5000);
   for (pos = 90; pos >= 0; pos -= 1) { // girará de 90 a 0 grados
     myservo.write(pos);              // guardamos la nueva posicion del servo
     delay(15);                       // velocidad del giro
   }
+  digitalWrite(ledPinVerde,LOW);
+  digitalWrite(ledPinRojo,HIGH);
 }
 
 void pitido(){
@@ -67,23 +70,11 @@ void pitido(){
   delay(250);
 }
 
-void parpadeo(){
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
-
-    // if the LED is off turn it on and vice-versa:
-    if (ledState == LOW) {
-      ledState = HIGH;
-    } else {
-      ledState = LOW;
-    }
-
-    // set the LED with the ledState of the variable:
-    digitalWrite(ledPinAbrir, ledState);
-  }
+void pitidoErroneo(){
+  tone(buzzer,500);
+  delay(500);
+  noTone(buzzer);
+  delay(500);
 }
 
 bool isEqualArray(byte* arrayA, byte* arrayB, int length)
@@ -115,6 +106,9 @@ void rfidFiltrar(){
       }else{
         lcdPrint("Invalido");
         condicion = 0;
+        pitidoErroneo();
+        delay(2000);
+        lcdSetup();
 
       // Finalizar lectura actual
       mfrc522.PICC_HaltA();
@@ -128,7 +122,9 @@ void rfidFiltrar(){
 
 void setup() {
   pinMode(buzzer,OUTPUT);
-  pinMode(ledPinAbrir, OUTPUT);
+  pinMode(ledPinRojo, OUTPUT);
+  pinMode(ledPinVerde, OUTPUT);
+  digitalWrite(ledPinRojo,HIGH);
   rfidSetup();
   servoSetup();
   lcdSetup();
@@ -140,7 +136,6 @@ void loop() {
     if (condicion == 1){
       pitido();
       giroServo();
-      parpadeo();
       condicion = 0;
     }
 }
