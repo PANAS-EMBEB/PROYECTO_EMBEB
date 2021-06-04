@@ -17,7 +17,8 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);   // Crear instancia del MFRC522
 
 //Definimos las tarjetas válidas
 byte validKey1[4] = { 0x87, 0x7F, 0x95, 0xC8 };
-byte validKey2[4] = { 0xC7, 0x37, 0x0C, 0xD9 };
+byte validKey2[4] = { 0x01, 0x02, 0x03, 0x04 };
+byte validKey3[4] = { 0xF2, 0xFC, 0x73, 0xEC };
 
 //Variables globales
 int pos = 0;
@@ -47,7 +48,7 @@ void servoSetup(){
 }
 
 void giroServo(){
-  for (pos = 0; pos <= 90; pos += 1) { // girará de 0 a 90 grados
+  for (pos = 0; pos <= 100; pos += 1) { // girará de 0 a 90 grados
     // in steps of 1 degree
     myservo.write(pos);              // guardamos la nueva posicion del servo
     delay(15);                       // velocidad del giro
@@ -55,12 +56,13 @@ void giroServo(){
   digitalWrite(ledPinRojo,LOW);
   digitalWrite(ledPinVerde,HIGH);
   delay(5000);
-  for (pos = 90; pos >= 0; pos -= 1) { // girará de 90 a 0 grados
+  for (pos = 100; pos >= 0; pos -= 1) { // girará de 90 a 0 grados
     myservo.write(pos);              // guardamos la nueva posicion del servo
     delay(15);                       // velocidad del giro
   }
   digitalWrite(ledPinVerde,LOW);
   digitalWrite(ledPinRojo,HIGH);
+  lcdSetup();
 }
 
 void pitido(){
@@ -71,10 +73,10 @@ void pitido(){
 }
 
 void pitidoErroneo(){
-  tone(buzzer,500);
-  delay(500);
+  tone(buzzer,400);
+  delay(700);
   noTone(buzzer);
-  delay(500);
+  delay(700);
 }
 
 bool isEqualArray(byte* arrayA, byte* arrayB, int length)
@@ -100,10 +102,12 @@ void rfidFiltrar(){
     if (mfrc522.PICC_ReadCardSerial())
     {
       // Comparar ID con las claves válidas
-      if ((isEqualArray(mfrc522.uid.uidByte, validKey1, 4)) or (isEqualArray(mfrc522.uid.uidByte, validKey2, 4))){
-        lcdPrint("Valido");
+      if ((isEqualArray(mfrc522.uid.uidByte, validKey1, 4)) or (isEqualArray(mfrc522.uid.uidByte, validKey2, 4)) or (isEqualArray(mfrc522.uid.uidByte, validKey3, 4))){
+        Serial.println("valido");
+        lcdPrint("Endavant");
         condicion = 1;
       }else{
+        Serial.println("Tarjeta invalida");
         lcdPrint("Invalido");
         condicion = 0;
         pitidoErroneo();
