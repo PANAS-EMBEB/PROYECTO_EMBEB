@@ -3,9 +3,11 @@
 #include <Servo.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <Wire.h> 
 
 //Definimos el LCD
-rgb_lcd lcd;
+#include <LiquidCrystal.h>    // importa libreria
+LiquidCrystal lcd(33, 31, 29, 27, 25, 23);  // pines RS, E, D4, D5, D6, D7 de modulo 1602A
 
 //Definimos el Servo
 Servo myservo;
@@ -26,7 +28,8 @@ int buzzer = 3;
 int ledPinRojo = 4;
 int ledPinVerde = 6;
 int condicion = 0;
-
+int x = 5;
+int general_state = 1;
 //Funciones complementarias
 
 void lcdSetup(){
@@ -132,14 +135,37 @@ void setup() {
   rfidSetup();
   servoSetup();
   lcdSetup();
+  Wire.begin(9);                  // Start the I2C Bus with address 9 in decimal (= 0x09 in hexadecimal) 
+  Wire.onReceive(receiveEvent);   // Attach a function to trigger when something is received 
+}
+
+void receiveEvent() {
+  x = Wire.read();                // read one character from the I2C 
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-    rfidFiltrar();
-    if (condicion == 1){
+  
+  /*
+  general on = 2
+  general off = 3
+  abrir barrera = 4
+  */
+  
+  if (x == 2) {
+    general_state = 1;
+  }
+  if (x == 3) {
+    general_state = 0;
+  }
+  if (x == 4) {
+    giroServo();
+    x = 45;
+  }
+  rfidFiltrar();
+  
+  if ((condicion == 1) && (general_state == 1)){
       pitido();
       giroServo();
       condicion = 0;
-    }
+  }
 }
